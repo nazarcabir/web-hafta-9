@@ -1,0 +1,106 @@
+### Variables
+@nestjs = http://localhost:3000
+@go = http://localhost:8080
+@apiKey = your-campus-connect-api-key
+@email = john.doe@example.com
+@password = password123
+
+### G1.1 - Register User
+# @name register
+POST {{nestjs}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### G1.2 - Conflict (409)
+POST {{nestjs}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### G8.1 - Login (Get Token)
+# @name login
+POST {{nestjs}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+@token = {{login.response.body.access_token}}
+
+### G2.1 - Create Event (Dispatches Webhook G5)
+# @name createEvent
+POST {{nestjs}}/api/v1/events
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Spring Festival",
+  "description": "Annual campus spring celebration",
+  "category": "social",
+  "city": "istanbul",
+  "date": "2026-04-15T18:00:00Z",
+  "maxParticipants": 2
+}
+
+@eventId = {{createEvent.response.body.id}}
+
+### G2.2 - List Events (Pagination, Filter, Sort)
+GET {{nestjs}}/api/v1/events?page=1&limit=5&category=social&city=istanbul&sort=date&order=desc
+
+### G3.1 - GraphQL Query (Events)
+POST {{nestjs}}/graphql
+X-REQUEST-TYPE: GraphQL
+
+query {
+  events {
+    id
+    title
+    participants {
+      id
+      name
+    }
+  }
+}
+
+### G3.2 - GraphQL Mutation (Join Event)
+POST {{nestjs}}/graphql
+X-REQUEST-TYPE: GraphQL
+Authorization: Bearer {{token}}
+
+mutation JoinEvent($id: Int!) {
+  joinEvent(eventId: $id) {
+    id
+    title
+  }
+}
+
+{
+  "id": {{eventId}}
+}
+
+### G5.1 - Notification History (Webhook Receipt)
+GET {{go}}/api/v1/notifications
+
+### G6.1 - Analytics: Popular Events (API Key G7)
+GET {{go}}/api/v1/analytics/popular
+X-API-Key: {{apiKey}}
+
+### G7.1 - Rate Limiting (429 Test)
+# Run multiple times to trigger 429
+GET {{go}}/api/v1/analytics/categories
+X-API-Key: {{apiKey}}
+
+### G9.1 - Error Handling (RFC 7807)
+GET {{nestjs}}/api/v1/users/99999
+Authorization: Bearer {{token}}

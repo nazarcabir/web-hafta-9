@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: campus-connect-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: campus_connect
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nestjs-service:
+    build: 
+      context: ./nestjs-service
+      dockerfile: Dockerfile
+    container_name: campus-connect-nestjs
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/campus_connect?schema=public"
+      JWT_SECRET: "your-super-secret-key"
+      JWT_EXPIRES_IN: "1h"
+      GO_SERVICE_URL: "http://go-service:8080/api/v1/webhooks/events"
+      WEBHOOK_SECRET: "your-webhook-secret-key"
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  go-service:
+    build:
+      context: ./go-service
+      dockerfile: Dockerfile
+    container_name: campus-connect-go
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/campus_connect?sslmode=disable"
+      PORT: 8080
+      API_KEY: "your-campus-connect-api-key"
+      WEBHOOK_SECRET: "your-webhook-secret-key"
+      GIN_MODE: "debug"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  pgdata:
